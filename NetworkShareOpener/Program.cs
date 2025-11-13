@@ -1,6 +1,6 @@
-﻿string uncPath = @"\\192.168.0.10\C$";
-string username = @"SERVER-PC\Administrator";  // 例
-string password = "your_password_here";
+﻿const string uncPath = @"\\192.168.0.10\C$";
+const string username = @"SERVER-PC\Administrator";  // 例
+const string password = "your_password_here";
 
 try
 {
@@ -16,4 +16,3 @@ catch (Exception ex)
 {
     Console.WriteLine(ex.Message);
 }
-
