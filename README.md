@@ -162,3 +162,123 @@ static void Main()
 * パスワードのハードコードは非推奨
 
   * 暗号化、資格情報マネージャなどの利用推奨
+
+
+
+
+
+やってることは結局「認証して UNC に接続 → Explorer で開く」なので、**VBScript / PowerShell / バッチ**でも全部できます。
+
+C# の `WNetAddConnection2` は、手動でやるときの `net use` コマンドと同じ層のAPIなので、スクリプトでは `net use` を叩くのが一番ラクです。
+
+---
+
+## 1️⃣ バッチ（.bat / .cmd）
+
+```bat
+@echo off
+
+set UNC=\\192.168.0.10\C$
+set USER=SERVER-PC\Administrator
+set PASS=your_password_here
+
+rem ① 管理共有に接続（認証） /persistent:no = 再起動後に残さない
+net use %UNC% %PASS% /user:%USER% /persistent:no
+
+rem ② Explorer を開く
+start "" explorer.exe %UNC%
+```
+
+> これだけで、C# でやってるのとほぼ同じことをコンソールだけで実現できます。
+
+---
+
+## 2️⃣ PowerShell 版
+
+### シンプルに `net use` を呼ぶパターン（実用向け）
+
+```powershell
+$unc  = '\\192.168.0.10\C$'
+$user = 'SERVER-PC\Administrator'
+$pass = 'your_password_here'
+
+# ① 接続
+cmd /c "net use $unc $pass /user:$user /persistent:no" | Out-Null
+
+# ② Explorer を開く
+Start-Process explorer.exe -ArgumentList $unc
+```
+
+### ちゃんと PowerShell らしく Credential 使う版
+
+```powershell
+$unc  = '\\192.168.0.10\C$'
+$user = 'SERVER-PC\Administrator'
+$pass = 'your_password_here'
+
+$sec  = ConvertTo-SecureString $pass -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential($user, $sec)
+
+# 一時的なPSドライブとしてマウント（ドライブレターじゃなく論理ドライブ）
+New-PSDrive -Name CAdmin -PSProvider FileSystem -Root $unc -Credential $cred | Out-Null
+
+# フォルダを開く
+Start-Process explorer.exe -ArgumentList $unc
+```
+
+---
+
+## 3️⃣ VBScript 版
+
+### `net use` を叩くシンプル版
+
+```vbscript
+Dim unc, user, pass
+unc  = "\\192.168.0.10\C$"
+user = "SERVER-PC\Administrator"
+pass = "your_password_here"
+
+Set sh = CreateObject("WScript.Shell")
+
+' ① 接続
+sh.Run "net use " & unc & " " & pass & " /user:" & user & " /persistent:no", 0, True
+
+' ② Explorer を開く
+sh.Run "explorer.exe " & unc, 1, False
+```
+
+### MapNetworkDrive を使う版（ドライブレターを使う）
+
+ドライブレター使っても良ければ：
+
+```vbscript
+Dim unc, user, pass
+unc  = "\\192.168.0.10\C$"
+user = "SERVER-PC\Administrator"
+pass = "your_password_here"
+
+Set net = CreateObject("WScript.Network")
+
+' Z: に割り当て（永続化しない）
+net.MapNetworkDrive "Z:", unc, False, user, pass
+
+' Explorer で開く
+Set sh = CreateObject("WScript.Shell")
+sh.Run "explorer.exe Z:", 1, False
+```
+
+---
+
+## 🔚 まとめ
+
+* C# → `WNetAddConnection2` 直叩き
+* バッチ / PowerShell / VBScript → `net use` or `MapNetworkDrive` で同じことができる
+* **やっていることの本質はまったく同じ**で、「ネットワークセッションを張ってから UNC を普通のフォルダとして使う」だけ
+
+なので、
+
+> *「C# 版ツール」「バッチ版」「PowerShell版」*
+> を並行して持っておいても全然アリです。
+
+「バッチ版か PowerShell 版も整えておきたい」ってなったら、
+どういうUI（引数 / メニュー / 対話式）にしたいか言ってくれればそこも詰めますよ。
