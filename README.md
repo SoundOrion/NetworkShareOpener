@@ -282,3 +282,127 @@ sh.Run "explorer.exe Z:", 1, False
 
 「バッチ版か PowerShell 版も整えておきたい」ってなったら、
 どういうUI（引数 / メニュー / 対話式）にしたいか言ってくれればそこも詰めますよ。
+
+
+
+もちろんできます。バッチ（.bat / .cmd）から **exe** でも **jar** でも実行できます。
+一番シンプルな方法から、引数や待機、ログ出力つきの方法までまとめます。
+
+---
+
+## 🔹 1️⃣ EXE を実行する（最もシンプル）
+
+```bat
+@echo off
+mytool.exe
+```
+
+EXE とバッチが同じフォルダにある場合はこれでOK。
+他のフォルダならパスを指定：
+
+```bat
+"C:\Tools\MyAdminTool\mytool.exe"
+```
+
+---
+
+## 🔹 2️⃣ EXE を **引数付き** で実行
+
+```bat
+mytool.exe 192.168.0.10 C$ /silent
+```
+
+exe 側で引数を `args[]` で受け取れば処理できます。
+
+---
+
+## 🔹 3️⃣ EXE の終了を待ってから次の処理を実行
+
+```bat
+@echo off
+call mytool.exe
+echo 完了しました
+pause
+```
+
+`call` を付けると **exe 終了後にバッチが続行**します。
+（付けないと exe に処理が移りバッチが戻ってこなくなる場合あり）
+
+---
+
+## 🔹 4️⃣ jar を実行する（Java）
+
+```bat
+java -jar mytool.jar
+```
+
+Java の PATH が通っていない場合：
+
+```bat
+"C:\Program Files\Java\jdk-17\bin\java.exe" -jar mytool.jar
+```
+
+引数付き：
+
+```bat
+java -jar mytool.jar 192.168.0.10 C$
+```
+
+---
+
+## 🔹 5️⃣ EXE / JAR の実行時に **標準出力をログに保存**
+
+```bat
+mytool.exe > result.log 2>&1
+```
+
+追記したい場合：
+
+```bat
+mytool.exe >> result.log 2>&1
+```
+
+---
+
+## 🔹 6️⃣ EXE / JAR 実行後に Explorer 展開（組み合わせ例）
+
+```bat
+@echo off
+
+rem 管理共有接続
+net use \\192.168.0.10\C$ password /user:SERVER-PC\Administrator /persistent:no
+
+rem ツール実行
+call mytool.exe 192.168.0.10
+
+rem Explorer を開く
+start "" explorer.exe "\\192.168.0.10\C$"
+
+pause
+```
+
+---
+
+## 🔥 最後にアドバイス（運用面）
+
+| 種類       | 向いている用途               |
+| -------- | --------------------- |
+| バッチ      | 接続準備・ロジックの外側・UI的な制御   |
+| EXE (C#) | 認証 / 自動処理 / 秘密情報を持つ処理 |
+| JAR      | Java ベースの業務ツールが既にある場合 |
+
+今回の用途（管理共有アクセス → 処理）は
+**バッチで接続 → EXE で実作業** が安定運用しやすい鉄板構成です。
+
+---
+
+必要ならテンプレ構成も作れます👇
+
+```
+Run.bat → 接続・初期化
+   ↓
+MyAdminTool.exe → 実処理
+```
+
+引数・ログ・エラーハンドリングまで組んだ “運用でハマらない形” にできますので、
+次にどう進めたいかだけ教えてください 💪
